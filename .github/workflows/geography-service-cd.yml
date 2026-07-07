@@ -1,0 +1,77 @@
+name: Geography Service CD
+
+on:
+  push:
+    branches:
+      - develop
+      - main
+    paths:
+      - 'geography-service/**'
+      - '.github/workflows/geography-service-cd.yml'
+
+env:
+  REGISTRY: ghcr.io
+
+jobs:
+  build-and-simulate-deploy:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+
+    defaults:
+      run:
+        working-directory: ./geography-service
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@v4
+        with:
+          java-version: '21'
+          distribution: 'temurin'
+          cache: maven
+
+      - name: Build application
+        run: mvn clean package -DskipTests
+
+      - name: Determine Environment and Tags
+        id: env_info
+        run: |
+          if [[ "${{ github.ref }}" == "refs/heads/main" ]]; then
+            echo "env_name=Production" >> $GITHUB_ENV
+            echo "image_tag=prod-latest" >> $GITHUB_ENV
+          elif [[ "${{ github.ref }}" == "refs/heads/develop" ]]; then
+            echo "env_name=DEV" >> $GITHUB_ENV
+            echo "image_tag=dev-latest" >> $GITHUB_ENV
+          else
+            echo "env_name=Other" >> $GITHUB_ENV
+            echo "image_tag=latest" >> $GITHUB_ENV
+          fi
+          
+          # Ensure repository name is lowercase for ghcr.io
+          IMAGE_NAME=$(echo "${{ github.repository }}/geography-service" | tr '[:upper:]' '[:lower:]')
+          echo "IMAGE_LOWER=$IMAGE_NAME" >> $GITHUB_ENV
+
+      - name: Log in to the Container registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push Docker image
+        uses: docker/build-push-action@v5
+        with:
+          context: ./geography-service
+          push: true
+          tags: ${{ env.REGISTRY }}/${{ env.IMAGE_LOWER }}:${{ env.image_tag }},${{ env.REGISTRY }}/${{ env.IMAGE_LOWER }}:${{ github.sha }}
+
+      - name: Simulate Deployment
+        run: |
+          echo "=========================================="
+          echo "🚀 Simulating deployment to ${{ env.env_name }}..."
+          echo "📦 Deployed image: ${{ env.REGISTRY }}/${{ env.IMAGE_LOWER }}:${{ env.image_tag }}"
+          echo "=========================================="
