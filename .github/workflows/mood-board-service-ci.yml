@@ -2,12 +2,12 @@ name: Mood Board Service CI
 
 on:
   push:
-    branches: [ "main" ]
+    branches: [ "main", "develop" ]
     paths:
       - 'mood-board-service/**'
       - '.github/workflows/mood-board-service-ci.yml'
   pull_request:
-    branches: [ "main" ]
+    branches: [ "main", "develop" ]
     paths:
       - 'mood-board-service/**'
       - '.github/workflows/mood-board-service-ci.yml'

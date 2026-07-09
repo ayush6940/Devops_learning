@@ -2,12 +2,12 @@ name: Geography Service CI
 
 on:
   push:
-    branches: [ "main" ]
+    branches: [ "main", "develop" ]
     paths:
       - 'geography-service/**'
       - '.github/workflows/geography-service-ci.yml'
   pull_request:
-    branches: [ "main" ]
+    branches: [ "main", "develop" ]
     paths:
       - 'geography-service/**'
       - '.github/workflows/geography-service-ci.yml'
