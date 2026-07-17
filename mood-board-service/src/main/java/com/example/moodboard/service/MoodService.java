@@ -33,6 +33,8 @@ public class MoodService {
         return response;
     }
 
+    private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(MoodService.class);
+
     public com.example.moodboard.dto.StateRequest processStateRequest(com.example.moodboard.dto.StateRequest request) {
         if (request.getRequestId() == null || request.getRequestId().isEmpty()) {
             request.setRequestId(java.util.UUID.randomUUID().toString());
@@ -40,7 +42,7 @@ public class MoodService {
         
         // Publish to Kafka topic
         kafkaTemplate.send("state-request", request.getRequestId(), request);
-        System.out.println("Published StateRequest to Kafka: " + request);
+        logger.info("[correlationId={}] Published StateRequest to Kafka: {}", request.getRequestId(), request);
         
         return request;
     }

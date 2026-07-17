@@ -1,5 +1,8 @@
 version: '3.8'
 
+volumes:
+  app-logs:
+
 services:
   kafka:
     image: apache/kafka:latest
@@ -27,6 +30,9 @@ services:
       - "8081:8081"
     environment:
       - SPRING_KAFKA_BOOTSTRAP_SERVERS=kafka:9092
+      - LOGGING_FILE_NAME=/var/logs/spring-boot/mood-board-service.log
+    volumes:
+      - app-logs:/var/logs/spring-boot
     depends_on:
       - kafka
 
@@ -38,5 +44,66 @@ services:
       - "8082:8082"
     environment:
       - SPRING_KAFKA_BOOTSTRAP_SERVERS=kafka:9092
+      - LOGGING_FILE_NAME=/var/logs/spring-boot/geography-service.log
+    volumes:
+      - app-logs:/var/logs/spring-boot
     depends_on:
       - kafka
+
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: local-prometheus
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+    depends_on:
+      - mood-board-service
+      - geography-service
+
+  grafana:
+    image: grafana/grafana:latest
+    container_name: local-grafana
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./monitoring/grafana/provisioning/datasources:/etc/grafana/provisioning/datasources
+      - ./monitoring/grafana/provisioning/dashboards:/etc/grafana/provisioning/dashboards
+      - ./monitoring/grafana/dashboards:/var/lib/grafana/dashboards
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+    depends_on:
+      - prometheus
+
+  opensearch:
+    image: opensearchproject/opensearch:2.11.0
+    container_name: local-opensearch
+    environment:
+      - discovery.type=single-node
+      - OPENSEARCH_JAVA_OPTS=-Xms512m -Xmx512m
+      - OPENSEARCH_INITIAL_ADMIN_PASSWORD=Admin@12345
+    ports:
+      - "9200:9200"
+
+  opensearch-dashboards:
+    image: opensearchproject/opensearch-dashboards:2.11.0
+    container_name: local-opensearch-dashboards
+    environment:
+      - OPENSEARCH_HOSTS=https://opensearch:9200
+    ports:
+      - "5601:5601"
+    depends_on:
+      - opensearch
+
+  fluent-bit:
+    image: fluent/fluent-bit:3.0.4
+    container_name: local-fluent-bit
+    volumes:
+      - ./infra-repository/logging/fluent-bit/fluent-bit.conf:/fluent-bit/etc/fluent-bit.conf
+      - app-logs:/var/logs/spring-boot
+    depends_on:
+      - opensearch
+      - mood-board-service
+      - geography-service

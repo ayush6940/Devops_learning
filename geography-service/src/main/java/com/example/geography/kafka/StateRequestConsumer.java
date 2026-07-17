@@ -11,6 +11,8 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 @Service
 public class StateRequestConsumer {
 
+    private static final org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(StateRequestConsumer.class);
+
     private final GeographyService geographyService;
     private final KafkaTemplate<String, Object> kafkaTemplate;
     private final ObjectMapper objectMapper;
@@ -25,22 +27,20 @@ public class StateRequestConsumer {
     public void consume(org.apache.kafka.clients.consumer.ConsumerRecord<String, Object> record) {
         try {
             Object message = record.value();
-            System.out.println("==================================================");
-            System.out.println("Geography Service: Received StateRequest!");
             
             // Convert LinkedHashMap (from JSON deserialization) back to POJO
             StateRequest request = objectMapper.convertValue(message, StateRequest.class);
-            System.out.println("Processing: " + request);
+            String correlationId = request.getRequestId();
+            logger.info("[correlationId={}] Geography Service: Received StateRequest! Processing: {}", correlationId, request);
 
             // Process logic
             LocationResponse response = geographyService.mapStateToLocation(request);
 
             // Produce response
             kafkaTemplate.send("geography-response", response.getRequestId(), response);
-            System.out.println("Geography Service: Published LocationResponse to Kafka!");
-            System.out.println("==================================================");
+            logger.info("[correlationId={}] Geography Service: Published LocationResponse to Kafka!", correlationId);
         } catch (Exception e) {
-            e.printStackTrace();
+            logger.error("Error processing StateRequest", e);
         }
     }
 }
